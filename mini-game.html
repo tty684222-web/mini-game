@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>点点躲避</title>
+  <style>
+    :root {
+      --bg1: #0f1226;
+      --bg2: #1b1f3f;
+      --card: rgba(255,255,255,0.08);
+      --text: #f5f7ff;
+      --good: #61f2b0;
+      --bad: #ff6b81;
+      --accent: #7aa2ff;
+      --gold: #ffd166;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at top, #27306a, var(--bg1) 55%, #090b18 100%);
+      color: var(--text);
+      font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+      overflow: hidden;
+    }
+    .app {
+      width: min(100vw, 460px);
+      height: min(100vh, 900px);
+      position: relative;
+      border-radius: 24px;
+      overflow: hidden;
+      background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
+      border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: 0 18px 50px rgba(0,0,0,0.35);
+    }
+    .hud {
+      position: absolute;
+      inset: 0 0 auto 0;
+      padding: 14px;
+      display: flex;
+      gap: 10px;
+      justify-content: space-between;
+      z-index: 10;
+    }
+    .pill {
+      background: rgba(0,0,0,0.25);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 999px;
+      padding: 10px 14px;
+      font-size: 14px;
+      backdrop-filter: blur(10px);
+    }
+    .arena {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+    }
+    .target {
+      position: absolute;
+      width: 62px;
+      height: 62px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      font-weight: 700;
+      transform: translate(-50%, -50%) scale(1);
+      user-select: none;
+      animation: pop 0.14s ease-out;
+    }
+    .good {
+      background: radial-gradient(circle at 30% 30%, #b8ffe2, var(--good));
+      box-shadow: 0 10px 22px rgba(97,242,176,0.35);
+      color: #083a29;
+    }
+    .bad {
+      background: radial-gradient(circle at 30% 30%, #ffc2cc, var(--bad));
+      box-shadow: 0 10px 22px rgba(255,107,129,0.35);
+      color: #4d0d18;
+    }
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: linear-gradient(180deg, rgba(6,9,24,0.55), rgba(6,9,24,0.78));
+      z-index: 20;
+    }
+    .panel {
+      width: 100%;
+      background: rgba(10,14,32,0.72);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 24px;
+      padding: 24px 20px;
+      text-align: center;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.35);
+      backdrop-filter: blur(16px);
+    }
+    h1 {
+      margin: 0 0 10px;
+      font-size: 30px;
+    }
+    .sub {
+      margin: 0 0 20px;
+      font-size: 15px;
+      line-height: 1.6;
+      color: rgba(255,255,255,0.84);
+    }
+    .tips {
+      text-align: left;
+      font-size: 14px;
+      line-height: 1.8;
+      background: rgba(255,255,255,0.05);
+      border-radius: 18px;
+      padding: 14px 16px;
+      margin-bottom: 18px;
+    }
+    .btn {
+      width: 100%;
+      border: 0;
+      border-radius: 16px;
+      padding: 16px;
+      font-size: 18px;
+      font-weight: 700;
+      color: #081224;
+      background: linear-gradient(135deg, #9ec5ff, #6fe7ff);
+      box-shadow: 0 10px 22px rgba(122,162,255,0.32);
+    }
+    .result-score {
+      font-size: 46px;
+      font-weight: 800;
+      color: var(--gold);
+      margin: 8px 0 16px;
+    }
+    .toast {
+      position: absolute;
+      pointer-events: none;
+      font-size: 24px;
+      font-weight: 800;
+      transform: translate(-50%, -50%);
+      animation: floatUp 0.65s ease-out forwards;
+      z-index: 30;
+    }
+    .toast.good { color: #9effcc; text-shadow: 0 0 12px rgba(97,242,176,0.45); }
+    .toast.bad { color: #ffb3bf; text-shadow: 0 0 12px rgba(255,107,129,0.45); }
+    .footer-note {
+      margin-top: 14px;
+      font-size: 12px;
+      color: rgba(255,255,255,0.58);
+    }
+    @keyframes pop {
+      from { transform: translate(-50%, -50%) scale(0.75); opacity: 0.65; }
+      to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    }
+    @keyframes floatUp {
+      0% { opacity: 1; transform: translate(-50%, -50%) scale(0.9); }
+      100% { opacity: 0; transform: translate(-50%, -110px) scale(1.15); }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="hud">
+      <div class="pill">分数：<span id="score">0</span></div>
+      <div class="pill">时间：<span id="time">30</span>s</div>
+      <div class="pill">生命：<span id="life">3</span></div>
+    </div>
+
+    <div class="arena" id="arena"></div>
+
+    <div class="overlay" id="startOverlay">
+      <div class="panel">
+        <h1>点点躲避</h1>
+        <p class="sub">一个适合手机直接玩的轻量小游戏。<br>30 秒内尽量多点绿色，别碰红色。</p>
+        <div class="tips">
+          ✅ 点绿色球：+1 分<br>
+          ❌ 点红色球：-1 生命<br>
+          ⏳ 30 秒结束，或者生命归零结束
+        </div>
+        <button class="btn" id="startBtn">开始一局</button>
+        <div class="footer-note">给皇上的极速试玩版</div>
+      </div>
+    </div>
+
+    <div class="overlay" id="endOverlay" style="display:none;">
+      <div class="panel">
+        <h1>本局结束</h1>
+        <div class="result-score" id="finalScore">0</div>
+        <p class="sub" id="resultText">手速不错，皇上。</p>
+        <button class="btn" id="restartBtn">再来一局</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const arena = document.getElementById('arena');
+    const scoreEl = document.getElementById('score');
+    const timeEl = document.getElementById('time');
+    const lifeEl = document.getElementById('life');
+    const startOverlay = document.getElementById('startOverlay');
+    const endOverlay = document.getElementById('endOverlay');
+    const finalScoreEl = document.getElementById('finalScore');
+    const resultText = document.getElementById('resultText');
+    const startBtn = document.getElementById('startBtn');
+    const restartBtn = document.getElementById('restartBtn');
+
+    let score = 0;
+    let timeLeft = 30;
+    let life = 3;
+    let gameRunning = false;
+    let spawnTimer = null;
+    let countdownTimer = null;
+
+    function updateHud() {
+      scoreEl.textContent = score;
+      timeEl.textContent = timeLeft;
+      lifeEl.textContent = life;
+    }
+
+    function clearTargets() {
+      arena.querySelectorAll('.target, .toast').forEach(el => el.remove());
+    }
+
+    function showToast(x, y, text, type) {
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.textContent = text;
+      toast.style.left = x + 'px';
+      toast.style.top = y + 'px';
+      arena.appendChild(toast);
+      setTimeout(() => toast.remove(), 650);
+    }
+
+    function randomPosition(size) {
+      const rect = arena.getBoundingClientRect();
+      const topPadding = 90;
+      const x = Math.random() * (rect.width - size) + size / 2;
+      const y = Math.random() * (rect.height - size - topPadding) + topPadding + size / 2;
+      return { x, y };
+    }
+
+    function spawnTarget() {
+      if (!gameRunning) return;
+
+      const el = document.createElement('div');
+      const isBad = Math.random() < 0.28;
+      const size = isBad ? 60 : 62;
+      const { x, y } = randomPosition(size);
+
+      el.className = `target ${isBad ? 'bad' : 'good'}`;
+      el.textContent = isBad ? '×' : '●';
+      el.style.left = x + 'px';
+      el.style.top = y + 'px';
+      el.style.width = size + 'px';
+      el.style.height = size + 'px';
+
+      const timeout = isBad ? 1200 : 1050;
+      const bornAt = Date.now();
+
+      el.addEventListener('click', () => {
+        if (!gameRunning) return;
+        const rect = arena.getBoundingClientRect();
+        const tx = x;
+        const ty = y;
+        if (isBad) {
+          life -= 1;
+          showToast(tx, ty, '-1 命', 'bad');
+        } else {
+          score += 1;
+          showToast(tx, ty, '+1', 'good');
+        }
+        updateHud();
+        el.remove();
+        if (life <= 0) endGame();
+      }, { passive: true });
+
+      arena.appendChild(el);
+
+      setTimeout(() => {
+        if (!el.isConnected) return;
+        el.remove();
+        if (!isBad && gameRunning && Date.now() - bornAt >= timeout) {
+          // 漏掉绿色不扣分，只制造一点紧张感
+        }
+      }, timeout);
+    }
+
+    function startSpawnLoop() {
+      function loop() {
+        if (!gameRunning) return;
+        spawnTarget();
+        const next = Math.max(260, 720 - (30 - timeLeft) * 12);
+        spawnTimer = setTimeout(loop, next);
+      }
+      loop();
+    }
+
+    function endGame() {
+      gameRunning = false;
+      clearTimeout(spawnTimer);
+      clearInterval(countdownTimer);
+      clearTargets();
+      finalScoreEl.textContent = score;
+      if (score >= 25) {
+        resultText.textContent = '皇上这手速，有点狠。';
+      } else if (score >= 15) {
+        resultText.textContent = '不错，已经很能打了。';
+      } else {
+        resultText.textContent = '刚热身完，再来一把。';
+      }
+      endOverlay.style.display = 'flex';
+    }
+
+    function startGame() {
+      score = 0;
+      timeLeft = 30;
+      life = 3;
+      gameRunning = true;
+      updateHud();
+      clearTargets();
+      startOverlay.style.display = 'none';
+      endOverlay.style.display = 'none';
+
+      startSpawnLoop();
+      countdownTimer = setInterval(() => {
+        timeLeft -= 1;
+        updateHud();
+        if (timeLeft <= 0) {
+          endGame();
+        }
+      }, 1000);
+    }
+
+    startBtn.addEventListener('click', startGame);
+    restartBtn.addEventListener('click', startGame);
+    updateHud();
+  </script>
+</body>
+</html>
